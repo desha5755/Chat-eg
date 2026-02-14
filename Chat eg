@@ -1,0 +1,482 @@
+const ComponentFunction = function() {
+  // @section:imports @depends:[]
+  const React = require('react');
+  const { useState, useEffect, useContext, useMemo, useCallback } = React;
+  const { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Alert, Platform, StatusBar, ActivityIndicator, KeyboardAvoidingView, FlatList, Image } = require('react-native');
+  const { MaterialIcons } = require('@expo/vector-icons');
+  const { createBottomTabNavigator } = require('@react-navigation/bottom-tabs');
+  // @end:imports
+
+  // @section:theme @depends:[]
+  const storageStrategy = 'local';
+  const primaryColor = '#FF6B6B';
+  const accentColor = '#4ECDC4';
+  const backgroundColor = '#FFFFFF';
+  const cardColor = '#F8F9FA';
+  const textPrimary = '#2D3748';
+  const textSecondary = '#718096';
+  const designStyle = 'modern';
+  
+  const Tab = createBottomTabNavigator();
+  // @end:theme
+
+  // @section:ThemeContext @depends:[theme]
+  const ThemeContext = React.createContext();
+  const ThemeProvider = function(props) {
+    const darkModeState = useState(false);
+    const darkMode = darkModeState[0];
+    const setDarkMode = darkModeState[1];
+    
+    const lightTheme = useMemo(function() {
+      return {
+        colors: {
+          primary: primaryColor,
+          accent: accentColor,
+          background: backgroundColor,
+          card: cardColor,
+          textPrimary: textPrimary,
+          textSecondary: textSecondary,
+          border: '#E5E7EB',
+          success: '#10B981',
+          error: '#EF4444',
+          warning: '#F59E0B'
+        }
+      };
+    }, []);
+    
+    const darkTheme = useMemo(function() {
+      return {
+        colors: {
+          primary: primaryColor,
+          accent: accentColor,
+          background: '#1F2937',
+          card: '#374151',
+          textPrimary: '#F9FAFB',
+          textSecondary: '#D1D5DB',
+          border: '#4B5563',
+          success: '#10B981',
+          error: '#EF4444',
+          warning: '#F59E0B'
+        }
+      };
+    }, []);
+    
+    const theme = darkMode ? darkTheme : lightTheme;
+    
+    const toggleDarkMode = useCallback(function() {
+      setDarkMode(function(prev) { return !prev; });
+    }, []);
+    
+    const value = useMemo(function() {
+      return { 
+        theme: theme, 
+        darkMode: darkMode, 
+        toggleDarkMode: toggleDarkMode, 
+        designStyle: designStyle 
+      };
+    }, [theme, darkMode, toggleDarkMode]);
+    
+    return React.createElement(ThemeContext.Provider, { value: value }, props.children);
+  };
+  
+  const useTheme = function() { 
+    return useContext(ThemeContext); 
+  };
+  // @end:ThemeContext
+
+  // @section:HomeScreen-state @depends:[ThemeContext]
+  const useHomeScreenState = function() {
+    const themeContext = useTheme();
+    const theme = themeContext.theme;
+    
+    const recentCallsState = useState([
+      { id: '1', name: 'Ahmed Mohamed', type: 'video', time: '10:30 AM', status: 'missed' },
+      { id: '2', name: 'Sara Ali', type: 'voice', time: '9:15 AM', status: 'incoming' },
+      { id: '3', name: 'Omar Hassan', type: 'video', time: 'Yesterday', status: 'outgoing' }
+    ]);
+    const recentCalls = recentCallsState[0];
+    const setRecentCalls = recentCallsState[1];
+    
+    const activeCallState = useState(null);
+    const activeCall = activeCallState[0];
+    const setActiveCall = activeCallState[1];
+    
+    return {
+      theme: theme,
+      recentCalls: recentCalls,
+      setRecentCalls: setRecentCalls,
+      activeCall: activeCall,
+      setActiveCall: setActiveCall
+    };
+  };
+  // @end:HomeScreen-state
+
+  // @section:HomeScreen-handlers @depends:[HomeScreen-state]
+  const homeScreenHandlers = {
+    startCall: function(state, contact, callType) {
+      const newCall = {
+        id: Date.now().toString(),
+        name: contact.name,
+        type: callType,
+        status: 'connecting'
+      };
+      state.setActiveCall(newCall);
+      Platform.OS === 'web' ? window.alert('Starting ' + callType + ' call with ' + contact.name) : Alert.alert('Call Started', 'Connecting to ' + contact.name);
+    },
+    endCall: function(state) {
+      state.setActiveCall(null);
+    }
+  };
+  // @end:HomeScreen-handlers
+
+  // @section:HomeScreen-QuickActions @depends:[styles]
+  const renderQuickActions = function(theme, onStartCall) {
+    const actions = [
+      { icon: 'videocam', label: 'Video Call', type: 'video', color: theme.colors.primary },
+      { icon: 'call', label: 'Voice Call', type: 'voice', color: theme.colors.accent },
+      { icon: 'screen-share', label: 'Screen Share', type: 'screen', color: theme.colors.warning },
+      { icon: 'chat', label: 'New Chat', type: 'chat', color: theme.colors.success }
+    ];
+    
+    return React.createElement(View, { style: styles.quickActions, componentId: 'home-quick-actions' },
+      React.createElement(Text, { 
+        style: [styles.sectionTitle, { color: theme.colors.textPrimary }], 
+        componentId: 'home-quick-title' 
+      }, 'Quick Actions'),
+      React.createElement(View, { style: styles.actionsGrid, componentId: 'home-actions-grid' },
+        actions.map(function(action, index) {
+          return React.createElement(TouchableOpacity, {
+            key: action.type,
+            style: [styles.actionCard, { backgroundColor: theme.colors.card }],
+            onPress: function() { onStartCall({ name: 'Quick Call' }, action.type); },
+            componentId: 'home-action-' + action.type
+          },
+            React.createElement(View, { 
+              style: [styles.actionIcon, { backgroundColor: action.color }], 
+              componentId: 'home-action-icon-' + index 
+            },
+              React.createElement(MaterialIcons, { name: action.icon, size: 24, color: '#FFFFFF' })
+            ),
+            React.createElement(Text, { 
+              style: [styles.actionLabel, { color: theme.colors.textPrimary }], 
+              componentId: 'home-action-label-' + index 
+            }, action.label)
+          );
+        })
+      )
+    );
+  };
+  // @end:HomeScreen-QuickActions
+
+  // @section:HomeScreen-RecentCalls @depends:[styles]
+  const renderRecentCalls = function(theme, calls, onCallPress) {
+    return React.createElement(View, { style: styles.recentSection, componentId: 'home-recent-section' },
+      React.createElement(Text, { 
+        style: [styles.sectionTitle, { color: theme.colors.textPrimary }], 
+        componentId: 'home-recent-title' 
+      }, 'Recent Calls'),
+      React.createElement(FlatList, {
+        data: calls,
+        showsVerticalScrollIndicator: false,
+        keyExtractor: function(item) { return item.id; },
+        renderItem: function(params) {
+          const item = params.item;
+          const statusColors = {
+            missed: theme.colors.error,
+            incoming: theme.colors.success,
+            outgoing: theme.colors.accent
+          };
+          
+          return React.createElement(TouchableOpacity, {
+            style: [styles.callItem, { backgroundColor: theme.colors.card }],
+            onPress: function() { onCallPress(item); },
+            componentId: 'home-call-item-' + item.id
+          },
+            React.createElement(View, { 
+              style: [styles.callIcon, { backgroundColor: statusColors[item.status] }], 
+              componentId: 'home-call-icon-' + item.id 
+            },
+              React.createElement(MaterialIcons, { 
+                name: item.type === 'video' ? 'videocam' : 'call', 
+                size: 20, 
+                color: '#FFFFFF' 
+              })
+            ),
+            React.createElement(View, { style: styles.callInfo, componentId: 'home-call-info-' + item.id },
+              React.createElement(Text, { 
+                style: [styles.callName, { color: theme.colors.textPrimary }], 
+                componentId: 'home-call-name-' + item.id 
+              }, item.name),
+              React.createElement(Text, { 
+                style: [styles.callTime, { color: theme.colors.textSecondary }], 
+                componentId: 'home-call-time-' + item.id 
+              }, item.time)
+            ),
+            React.createElement(TouchableOpacity, {
+              style: styles.callButton,
+              onPress: function() { onCallPress(item); },
+              componentId: 'home-call-button-' + item.id
+            },
+              React.createElement(MaterialIcons, { 
+                name: 'call', 
+                size: 24, 
+                color: theme.colors.primary 
+              })
+            )
+          );
+        },
+        componentId: 'home-recent-list'
+      })
+    );
+  };
+  // @end:HomeScreen-RecentCalls
+
+  // @section:HomeScreen @depends:[HomeScreen-state,HomeScreen-handlers,HomeScreen-QuickActions,HomeScreen-RecentCalls,styles]
+  const HomeScreen = function() {
+    const state = useHomeScreenState();
+    const handlers = homeScreenHandlers;
+    
+    return React.createElement(ScrollView, {
+      style: [styles.container, { backgroundColor: state.theme.colors.background }],
+      contentContainerStyle: { paddingBottom: Platform.OS === 'web' ? 90 : 100 },
+      showsVerticalScrollIndicator: false,
+      componentId: 'home-screen'
+    },
+      React.createElement(View, { style: styles.header, componentId: 'home-header' },
+        React.createElement(Text, { 
+          style: [styles.headerTitle, { color: state.theme.colors.textPrimary }], 
+          componentId: 'home-header-title' 
+        }, 'ConnectChat'),
+        React.createElement(Text, { 
+          style: [styles.headerSubtitle, { color: state.theme.colors.textSecondary }], 
+          componentId: 'home-header-subtitle' 
+        }, 'Stay connected with friends and family'),
+        React.createElement(Image, {
+          source: { uri: 'IMAGE:people-video-calling-laptops' },
+          style: styles.headerImage,
+          componentId: 'home-header-image'
+        })
+      ),
+      renderQuickActions(state.theme, function(contact, type) { 
+        handlers.startCall(state, contact, type); 
+      }),
+      renderRecentCalls(state.theme, state.recentCalls, function(call) { 
+        handlers.startCall(state, call, call.type); 
+      })
+    );
+  };
+  // @end:HomeScreen
+
+  // @section:ContactsScreen-state @depends:[ThemeContext]
+  const useContactsScreenState = function() {
+    const themeContext = useTheme();
+    const theme = themeContext.theme;
+    
+    const contactsState = useState([
+      { id: '1', name: 'Ahmed Mohamed', phone: '+966501234567', email: 'ahmed@example.com', avatar: 'IMAGE:professional-man-business-suit', status: 'online' },
+      { id: '2', name: 'Sara Ali', phone: '+966507654321', email: 'sara@example.com', avatar: 'IMAGE:professional-woman-smiling', status: 'offline' },
+      { id: '3', name: 'Omar Hassan', phone: '+966509876543', email: 'omar@example.com', avatar: 'IMAGE:young-man-casual-clothing', status: 'online' },
+      { id: '4', name: 'Layla Ahmed', phone: '+966502345678', email: 'layla@example.com', avatar: 'IMAGE:businesswoman-professional-outfit', status: 'busy' }
+    ]);
+    const contacts = contactsState[0];
+    const setContacts = contactsState[1];
+    
+    const showAddModalState = useState(false);
+    const showAddModal = showAddModalState[0];
+    const setShowAddModal = showAddModalState[1];
+    
+    const newContactState = useState({ name: '', phone: '', email: '' });
+    const newContact = newContactState[0];
+    const setNewContact = newContactState[1];
+    
+    const searchState = useState('');
+    const search = searchState[0];
+    const setSearch = searchState[1];
+    
+    return {
+      theme: theme,
+      contacts: contacts,
+      setContacts: setContacts,
+      showAddModal: showAddModal,
+      setShowAddModal: setShowAddModal,
+      newContact: newContact,
+      setNewContact: setNewContact,
+      search: search,
+      setSearch: setSearch
+    };
+  };
+  // @end:ContactsScreen-state
+
+  // @section:ContactsScreen-handlers @depends:[ContactsScreen-state]
+  const contactsScreenHandlers = {
+    addContact: function(state) {
+      if (!state.newContact.name.trim() || !state.newContact.phone.trim()) {
+        Platform.OS === 'web' ? window.alert('Please fill required fields') : Alert.alert('Error', 'Please fill required fields');
+        return;
+      }
+      
+      const contact = {
+        id: Date.now().toString(),
+        name: state.newContact.name,
+        phone: state.newContact.phone,
+        email: state.newContact.email,
+        avatar: 'IMAGE:person-profile-placeholder',
+        status: 'offline'
+      };
+      
+      state.setContacts(function(prev) { return prev.concat([contact]); });
+      state.setNewContact({ name: '', phone: '', email: '' });
+      state.setShowAddModal(false);
+      Platform.OS === 'web' ? window.alert('Contact added successfully') : Alert.alert('Success', 'Contact added successfully');
+    },
+    
+    startCall: function(contact, callType) {
+      Platform.OS === 'web' ? window.alert('Starting ' + callType + ' call with ' + contact.name) : Alert.alert('Call', 'Starting ' + callType + ' call with ' + contact.name);
+    },
+    
+    filterContacts: function(contacts, search) {
+      if (!search.trim()) return contacts;
+      return contacts.filter(function(contact) {
+        return contact.name.toLowerCase().indexOf(search.toLowerCase()) !== -1 ||
+               contact.phone.indexOf(search) !== -1;
+      });
+    }
+  };
+  // @end:ContactsScreen-handlers
+
+  // @section:ContactsScreen-AddModal @depends:[styles]
+  const renderAddContactModal = function(visible, onClose, onAdd, newContact, setNewContact, theme) {
+    return React.createElement(Modal, {
+      visible: visible,
+      animationType: 'slide',
+      transparent: true,
+      onRequestClose: onClose
+    },
+      React.createElement(KeyboardAvoidingView, {
+        style: styles.modalOverlay,
+        behavior: Platform.OS === 'ios' ? 'padding' : (Platform.OS === 'web' ? undefined : 'height'),
+        componentId: 'contacts-modal-overlay'
+      },
+        React.createElement(View, { 
+          style: [styles.modalContent, { backgroundColor: theme.colors.card }], 
+          componentId: 'contacts-modal-content' 
+        },
+          React.createElement(View, { style: styles.modalHeader, componentId: 'contacts-modal-header' },
+            React.createElement(Text, { 
+              style: [styles.modalTitle, { color: theme.colors.textPrimary }], 
+              componentId: 'contacts-modal-title' 
+            }, 'Add New Contact'),
+            React.createElement(TouchableOpacity, {
+              onPress: onClose,
+              style: styles.modalCloseButton,
+              componentId: 'contacts-modal-close'
+            },
+              React.createElement(MaterialIcons, { name: 'close', size: 24, color: theme.colors.textSecondary })
+            )
+          ),
+          React.createElement(View, { style: styles.modalBody, componentId: 'contacts-modal-body' },
+            React.createElement(TextInput, {
+              style: [styles.input, { backgroundColor: theme.colors.background, color: theme.colors.textPrimary, borderColor: theme.colors.border }],
+              placeholder: 'Full Name *',
+              placeholderTextColor: theme.colors.textSecondary,
+              value: newContact.name,
+              onChangeText: function(text) {
+                setNewContact(function(prev) { return { name: text, phone: prev.phone, email: prev.email }; });
+              },
+              componentId: 'contacts-input-name'
+            }),
+            React.createElement(TextInput, {
+              style: [styles.input, { backgroundColor: theme.colors.background, color: theme.colors.textPrimary, borderColor: theme.colors.border }],
+              placeholder: 'Phone Number *',
+              placeholderTextColor: theme.colors.textSecondary,
+              value: newContact.phone,
+              onChangeText: function(text) {
+                setNewContact(function(prev) { return { name: prev.name, phone: text, email: prev.email }; });
+              },
+              keyboardType: 'phone-pad',
+              componentId: 'contacts-input-phone'
+            }),
+            React.createElement(TextInput, {
+              style: [styles.input, { backgroundColor: theme.colors.background, color: theme.colors.textPrimary, borderColor: theme.colors.border }],
+              placeholder: 'Email (optional)',
+              placeholderTextColor: theme.colors.textSecondary,
+              value: newContact.email,
+              onChangeText: function(text) {
+                setNewContact(function(prev) { return { name: prev.name, phone: prev.phone, email: text }; });
+              },
+              keyboardType: 'email-address',
+              componentId: 'contacts-input-email'
+            })
+          ),
+          React.createElement(View, { style: styles.modalFooter, componentId: 'contacts-modal-footer' },
+            React.createElement(TouchableOpacity, {
+              style: [styles.button, styles.buttonSecondary, { borderColor: theme.colors.border }],
+              onPress: onClose,
+              componentId: 'contacts-button-cancel'
+            },
+              React.createElement(Text, { 
+                style: [styles.buttonText, { color: theme.colors.textSecondary }], 
+                componentId: 'contacts-button-cancel-text' 
+              }, 'Cancel')
+            ),
+            React.createElement(TouchableOpacity, {
+              style: [styles.button, styles.buttonPrimary, { backgroundColor: theme.colors.primary }],
+              onPress: onAdd,
+              componentId: 'contacts-button-add'
+            },
+              React.createElement(Text, { 
+                style: [styles.buttonText, { color: '#FFFFFF' }], 
+                componentId: 'contacts-button-add-text' 
+              }, 'Add Contact')
+            )
+          )
+        )
+      )
+    );
+  };
+  // @end:ContactsScreen-AddModal
+
+  // @section:ContactsScreen @depends:[ContactsScreen-state,ContactsScreen-handlers,ContactsScreen-AddModal,styles]
+  const ContactsScreen = function() {
+    const state = useContactsScreenState();
+    const handlers = contactsScreenHandlers;
+    const filteredContacts = handlers.filterContacts(state.contacts, state.search);
+    
+    return React.createElement(View, { 
+      style: [styles.container, { backgroundColor: state.theme.colors.background }], 
+      componentId: 'contacts-screen' 
+    },
+      React.createElement(View, { style: styles.header, componentId: 'contacts-header' },
+        React.createElement(Text, { 
+          style: [styles.headerTitle, { color: state.theme.colors.textPrimary }], 
+          componentId: 'contacts-header-title' 
+        }, 'Contacts'),
+        React.createElement(TextInput, {
+          style: [styles.searchInput, { backgroundColor: state.theme.colors.card, color: state.theme.colors.textPrimary, borderColor: state.theme.colors.border }],
+          placeholder: 'Search contacts...',
+          placeholderTextColor: state.theme.colors.textSecondary,
+          value: state.search,
+          onChangeText: state.setSearch,
+          componentId: 'contacts-search-input'
+        })
+      ),
+      React.createElement(FlatList, {
+        data: filteredContacts,
+        showsVerticalScrollIndicator: false,
+        contentContainerStyle: { paddingBottom: Platform.OS === 'web' ? 90 : 100 },
+        keyExtractor: function(item) { return item.id; },
+        renderItem: function(params) {
+          const contact = params.item;
+          const statusColors = {
+            online: state.theme.colors.success,
+            offline: state.theme.colors.textSecondary,
+            busy: state.theme.colors.error
+          };
+          
+          return React.createElement(View, {
+            style: [styles.contactItem, { backgroundColor: state.theme.colors.card }],
+            componentId: 'contacts-item-' + contact.id
+          },
+            React.createElement(View, { style: styles.contactAvatar, componentId: 'contacts-avatar-' + contact.id },
+              React.createElement(Image, {
+                source: { uri: contact.ava
